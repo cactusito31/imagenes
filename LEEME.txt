@@ -1,0 +1,46 @@
+IMAGENES - conversor de imagenes por terminal (guiado y con colores)
+====================================================================
+
+CONTENIDO DE ESTE PAQUETE
+  imagenes.py                 -> la aplicacion
+  CREAR_EXE.bat               -> genera "imagenes.exe" (un solo clic)
+  EJECUTAR_sin_compilar.bat   -> ejecuta la app sin compilar (necesita Python)
+  LEEME.txt                   -> este archivo
+
+------------------------------------------------------------
+OPCION A (recomendada): crear un .exe portable, SIN Python
+------------------------------------------------------------
+Esto se hace UNA sola vez, en cualquier PC Windows que tenga Python:
+
+  1. Descomprime esta carpeta en cualquier sitio (p. ej. el Escritorio).
+  2. Doble clic en  CREAR_EXE.bat  y espera a que termine.
+  3. Aparecera el ejecutable en la subcarpeta  dist\imagenes.exe
+
+  4. Copia SOLO el archivo  imagenes.exe  a todos tus dispositivos
+     (USB, nube, red...). No necesita Python ni instalacion.
+     Se ejecuta con doble clic, o desde la terminal escribiendo su ruta.
+
+  Consejo: pon imagenes.exe en una carpeta y anade esa carpeta al PATH
+  para poder escribir "imagenes" desde cualquier sitio.
+
+------------------------------------------------------------
+OPCION B: usarla sin compilar (mas simple, pero necesita Python)
+------------------------------------------------------------
+  1. Instala Python desde https://www.python.org/downloads/
+     (marca la casilla "Add python.exe to PATH").
+  2. Doble clic en  EJECUTAR_sin_compilar.bat
+
+------------------------------------------------------------
+COMO FUNCIONA LA APP
+------------------------------------------------------------
+Te pregunta paso a paso:
+  1. Que carpeta/imagen convertir
+  2. A que formato(s): WEBP, JPG, PNG, BMP, TIFF
+  3. A que tamano: original, miniatura, mediano, grande, completo,
+     varios a la vez, o uno personalizado
+  4. Calidad (si aplica)
+  5. Si quieres renombrarlas con nombre SEO
+
+La salida se crea SIEMPRE dentro de la carpeta de origen, en una subcarpeta
+"imagenes_convertidas". Con varios tamanos -> subcarpetas por tamano;
+con un solo tamano -> imagenes sueltas. Genera tambien un reporte.csv.
