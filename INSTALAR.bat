@@ -48,7 +48,7 @@ if exist "%~dp0LEEME.txt"          copy /y "%~dp0LEEME.txt"          "%APPDIR%\"
 
 rem --- Version, para "Agregar o quitar programas" ---
 set "VER="
-for /f "usebackq delims=" %%v in (`"%APPDIR%\imagenes.exe" --version 2^>nul`) do set "VER=%%v"
+for /f "usebackq tokens=2" %%v in (`"%APPDIR%\imagenes.exe" --version 2^>nul`) do set "VER=%%v"
 if not defined VER set "VER=2.0.0"
 
 echo - Creando accesos directos, menu contextual y PATH...
