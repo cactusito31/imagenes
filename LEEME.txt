@@ -1,46 +1,113 @@
-IMAGENES - conversor de imagenes por terminal (guiado y con colores)
-====================================================================
+IMAGENES 2.0 - conversor de imagenes por terminal
+=================================================
 
-CONTENIDO DE ESTE PAQUETE
-  imagenes.py                 -> la aplicacion
-  CREAR_EXE.bat               -> genera "imagenes.exe" (un solo clic)
-  EJECUTAR_sin_compilar.bat   -> ejecuta la app sin compilar (necesita Python)
-  LEEME.txt                   -> este archivo
+Convierte y redimensiona lotes de imagenes a WEBP, AVIF, JPG, PNG, GIF,
+TIFF y BMP. Lee ademas HEIC/HEIF (las fotos del iPhone).
 
-------------------------------------------------------------
-OPCION A (recomendada): crear un .exe portable, SIN Python
-------------------------------------------------------------
-Esto se hace UNA sola vez, en cualquier PC Windows que tenga Python:
 
-  1. Descomprime esta carpeta en cualquier sitio (p. ej. el Escritorio).
-  2. Doble clic en  CREAR_EXE.bat  y espera a que termine.
-  3. Aparecera el ejecutable en la subcarpeta  dist\imagenes.exe
+INSTALAR
+--------
+  1. Doble clic en CREAR_EXE.bat   (una sola vez, en un PC con Python)
+  2. Doble clic en INSTALAR.bat
 
-  4. Copia SOLO el archivo  imagenes.exe  a todos tus dispositivos
-     (USB, nube, red...). No necesita Python ni instalacion.
-     Se ejecuta con doble clic, o desde la terminal escribiendo su ruta.
+Despues lo tienes disponible de cuatro maneras:
+  - el acceso directo del Escritorio y del Menu Inicio
+  - arrastrando una carpeta encima de ese acceso
+  - clic derecho sobre una carpeta > Convertir imagenes
+  - escribiendo  imagenes  en cualquier terminal nueva
 
-  Consejo: pon imagenes.exe en una carpeta y anade esa carpeta al PATH
-  para poder escribir "imagenes" desde cualquier sitio.
+Para quitarlo: DESINSTALAR.bat, o Agregar o quitar programas.
+Sin compilar nada: EJECUTAR_sin_compilar.bat (necesita Python).
 
-------------------------------------------------------------
-OPCION B: usarla sin compilar (mas simple, pero necesita Python)
-------------------------------------------------------------
-  1. Instala Python desde https://www.python.org/downloads/
-     (marca la casilla "Add python.exe to PATH").
-  2. Doble clic en  EJECUTAR_sin_compilar.bat
 
-------------------------------------------------------------
-COMO FUNCIONA LA APP
-------------------------------------------------------------
-Te pregunta paso a paso:
-  1. Que carpeta/imagen convertir
-  2. A que formato(s): WEBP, JPG, PNG, BMP, TIFF
-  3. A que tamano: original, miniatura, mediano, grande, completo,
-     varios a la vez, o uno personalizado
-  4. Calidad (si aplica)
-  5. Si quieres renombrarlas con nombre SEO
+DOS FORMAS DE USARLO
+--------------------
+1) ASISTENTE (como siempre). Ejecutalo sin nada y te va preguntando.
+   Recuerda lo que elegiste la ultima vez y lo ofrece por defecto.
 
-La salida se crea SIEMPRE dentro de la carpeta de origen, en una subcarpeta
-"imagenes_convertidas". Con varios tamanos -> subcarpetas por tamano;
-con un solo tamano -> imagenes sueltas. Genera tambien un reporte.csv.
+2) DIRECTO, sin preguntas. Util para repetir y para automatizar.
+   No hereda nada de la vez anterior: el mismo comando da siempre el
+   mismo resultado. Lo que no digas se queda en los valores de fabrica
+   (o en los del preset, si usas --preset).
+
+   imagenes C:\fotos --preset web
+   imagenes C:\fotos -f webp,avif -s 800,1600 -q 82
+   imagenes C:\fotos -f jpg -s 1000x1000 --encaje recortar
+   imagenes C:\fotos --preset woo --seo silla-oficina
+   imagenes C:\fotos --preset web --simular      (ensena lo que haria)
+   imagenes --presets                            (lista los presets)
+   imagenes --help                               (todas las opciones)
+
+
+PRESETS
+-------
+  web             WEBP + AVIF en 800 y 1600, sin metadatos, en sRGB.
+  woo             Cuadradas con fondo blanco en 300/800/1600 (fichas de
+                  producto de WooCommerce).
+  rapido          Un solo WEBP a 1600.
+  maxima-calidad  Tamano original, calidad 95, conserva todo.
+
+Puedes guardar los tuyos desde el asistente, o asi:
+  imagenes --preset web -q 90 --guardar-preset web-alta
+
+Se guardan en  %APPDATA%\Imagenes\config.json
+
+
+QUE HACE CON TUS ARCHIVOS
+-------------------------
+La salida va SIEMPRE a una subcarpeta "imagenes_convertidas" dentro de la
+carpeta de origen (o donde digas con -o). Nunca toca los originales.
+
+  - Con varios tamanos     -> una subcarpeta por tamano.
+  - Con subcarpetas dentro -> se replica el arbol, para que dos "foto.jpg"
+                              en carpetas distintas no se pisen.
+  - Si dos archivos dan el mismo nombre de salida (foto.png y foto.jpg dan
+    los dos foto.webp), el segundo sale como foto-2.webp.
+
+Ademas genera:
+  - reporte-FECHA.csv   una fila por archivo, con el ahorro conseguido.
+  - snippet.html        el <picture> con srcset ya montado, listo para
+                        pegar (solo si hay varios tamanos o formatos).
+
+
+DETALLES QUE IMPORTAN
+---------------------
+  ENCAJE       ajustar   cabe dentro de la medida (por defecto)
+               recortar  medida exacta, recorta lo que sobra
+               rellenar  medida exacta, anade fondo alrededor
+               Ajustar y rellenar nunca amplian una imagen pequena.
+
+  COLOR        conservar  incrusta el perfil ICC original (fiel)
+               srgb       convierte a sRGB: mas ligero y mas compatible,
+                          es lo que quieres para web
+
+  METADATOS    limpiar    quita el EXIF, incluida la ubicacion GPS.
+                          Recomendado antes de publicar fotos de movil.
+               conservar  los mantiene (archivo fotografico)
+
+  ANIMACIONES  Los GIF animados conservan la animacion al pasar a WEBP,
+               AVIF, PNG o GIF. En JPG, TIFF y BMP no se puede: se guarda
+               el primer fotograma y te avisa.
+
+  VELOCIDAD    Convierte en paralelo. Con --hilos N puedes fijar cuantos.
+               Medido con 7 fotos de movil de 3,3 MB: 5,3 s la version 1
+               contra 2,6 s esta, de los cuales 1,3 s son el arranque del
+               .exe (es el precio de que sea un unico archivo portable).
+
+  MPO          Los JPEG del iPhone llevan una segunda imagen dentro y
+               declaran tener 2 fotogramas sin estar animados. Se detectan
+               como lo que son: si no, saldrian tumbados.
+
+
+CALIDADES ORIENTATIVAS
+----------------------
+  WEBP 82   equivale mas o menos a un JPG 90
+  AVIF 60   pesa un tercio menos que ese WEBP, misma calidad aparente
+  JPG  85   suficiente para casi todo
+
+
+DESARROLLO
+----------
+  imagenes/        el codigo (cli, config, core, report, runner, ui, wizard)
+  tests/           45 pruebas:  python -m pytest tests -q
+  imagenes.spec    receta de PyInstaller

@@ -76,3 +76,17 @@ def test_salida_a_otra_carpeta(tmp_path, monkeypatch):
 
 def test_ruta_inexistente_devuelve_error(tmp_path):
     assert cli.main([str(tmp_path / "no-existe"), "-f", "webp"]) == 1
+
+
+def test_el_modo_directo_no_arrastra_la_configuracion_anterior(tmp_path, monkeypatch):
+    """El mismo comando debe dar el mismo resultado, se haya hecho lo que se haya
+    hecho antes. Solo el asistente recuerda."""
+    from imagenes.config import Config, remember
+    monkeypatch.setenv("APPDATA", str(tmp_path / "cfg"))
+    remember(Config(fit_mode="rellenar", formats=["png"], sizes={"thumb": (300, 300)},
+                    metadata="conservar"))
+
+    cfg = cli.config_from_args(parse(["C:/fotos", "-f", "webp", "-s", "large"]))
+    assert cfg.fit_mode == "ajustar"        # no el rellenar que quedo guardado
+    assert cfg.metadata == "limpiar"
+    assert list(cfg.sizes) == ["large"]

@@ -5,9 +5,10 @@ import os
 import sys
 
 from . import __version__
-from .config import (Config, all_presets, config_file, delete_preset, get_preset,
-                     has_heif_support, last_config, parse_formats, parse_sizes,
-                     remember, save_preset, slugify)
+from .config import (Config, FMT_KEYS, HAS_ANIMATION, PIL_NAME, all_presets,
+                     config_file, delete_preset, get_preset, has_heif_support,
+                     input_extensions, parse_formats, parse_sizes,
+                     save_preset, slugify)
 from . import runner
 from .ui import ask_yes_no, banner, c, clean_path, error, section
 
@@ -63,6 +64,8 @@ def build_parser() -> argparse.ArgumentParser:
                    help="guarda estas opciones como preset y sale")
     p.add_argument("--borrar-preset", metavar="NOMBRE", help="borra un preset guardado y sale")
     p.add_argument("--presets", action="store_true", help="lista los presets y sale")
+    p.add_argument("--diagnostico", action="store_true",
+                   help="ensena que formatos y funciones estan disponibles, y sale")
     p.add_argument("-V", "--version", action="version",
                    version="imagenes %s" % __version__)
     return p
@@ -91,7 +94,10 @@ def config_from_args(args) -> Config:
                 "No existe el preset %s. Los disponibles son: %s"
                 % (args.preset, ", ".join(all_presets())))
     else:
-        cfg = last_config()
+        # El modo directo NO hereda la configuracion de la vez anterior: el mismo
+        # comando tiene que dar siempre el mismo resultado, se haya hecho lo que se
+        # haya hecho antes. Lo que se recuerda es solo para el asistente.
+        cfg = Config()
 
     if args.formatos:
         cfg.formats = parse_formats(args.formatos)
@@ -139,6 +145,38 @@ def list_presets() -> int:
     return 0
 
 
+def diagnostico() -> int:
+    """Para saber por que algo no funciona sin tener que adivinar."""
+    import platform
+    import PIL
+    from PIL import Image, features
+    from .core import default_workers
+
+    Image.init()
+    print(c("imagenes %s" % __version__, "bold"))
+    print("  Python  : %s" % platform.python_version())
+    print("  Pillow  : %s" % PIL.__version__)
+    print("  Sistema : %s %s" % (platform.system(), platform.release()))
+    empaquetado = getattr(sys, "frozen", False)
+    print("  Origen  : %s" % ("ejecutable compilado" if empaquetado else "codigo Python"))
+    print("  Hilos   : %d por defecto" % default_workers(100))
+    print("  Ajustes : %s" % config_file())
+    print()
+    print(c("Formatos de salida:", "bold"))
+    for k in FMT_KEYS:
+        ok = PIL_NAME[k] in Image.SAVE
+        anim = " (conserva animaciones)" if HAS_ANIMATION[k] else ""
+        print("  %-6s %s%s" % (k, c("disponible", "green") if ok else c("NO", "red"), anim))
+    print()
+    print(c("Entrada:", "bold"))
+    heif = has_heif_support()
+    print("  HEIC/HEIF (fotos de iPhone): %s"
+          % (c("si", "green") if heif else c("no - falta pillow-heif", "yellow")))
+    print("  AVIF: %s" % (c("si", "green") if features.check("avif") else c("no", "yellow")))
+    print("  Extensiones que se leen: %s" % ", ".join(input_extensions()))
+    return 0
+
+
 def simulate(cfg: Config) -> int:
     inputs, jobs, out_dir = runner.prepare(cfg)
     if not inputs:
@@ -163,6 +201,7 @@ def simulate(cfg: Config) -> int:
 
 
 def interactive_loop(initial_path: str = "") -> int:
+    from .config import remember
     from .wizard import offer_save_preset, wizard
     while True:
         cfg = wizard(initial_path)
@@ -185,6 +224,9 @@ def interactive_loop(initial_path: str = "") -> int:
 
 def main(argv=None) -> int:
     args = build_parser().parse_args(argv)
+
+    if args.diagnostico:
+        return diagnostico()
 
     if args.presets:
         return list_presets()
@@ -236,7 +278,6 @@ def main(argv=None) -> int:
         error("No se han encontrado imagenes en esa ruta.")
         return 1
     runner.print_summary(cfg, inputs, jobs, out_dir)
-    remember(cfg)
     return runner.execute(cfg, jobs, out_dir)
 
 

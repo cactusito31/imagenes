@@ -11,11 +11,22 @@ from .ui import (ask, ask_int, ask_multichoice, ask_path, ask_single_choice,
                  ask_yes_no, banner, c, section)
 
 
+class Pasos:
+    """Numera los pasos sobre la marcha: si uno se omite, no queda un hueco."""
+
+    def __init__(self):
+        self.n = 0
+
+    def titulo(self, texto: str) -> str:
+        self.n += 1
+        return "--- %d. %s ---" % (self.n, texto)
+
+
 def _sizes_label(cfg: Config) -> str:
     return ", ".join(cfg.sizes)
 
 
-def choose_starting_point(default_cfg: Config) -> Config:
+def choose_starting_point(default_cfg: Config, paso: Pasos) -> Config:
     """Preset, ultima configuracion o partir de cero."""
     presets = all_presets()
     opts = [("_ultima", "Lo mismo que la ultima vez  (%s / %s)"
@@ -24,7 +35,7 @@ def choose_starting_point(default_cfg: Config) -> Config:
         opts.append((name, "Preset %s - %s" % (name, p.get("_desc", ""))))
     opts.append(("_manual", "Configurarlo todo paso a paso"))
 
-    key = ask_single_choice("--- 2. De donde partimos ---", opts, default_key="_ultima")
+    key = ask_single_choice(paso.titulo("De donde partimos"), opts, default_key="_ultima")
     if key == "_manual":
         return Config()
     if key == "_ultima":
@@ -32,7 +43,7 @@ def choose_starting_point(default_cfg: Config) -> Config:
     return get_preset(key) or Config()
 
 
-def ask_formats(cfg: Config) -> None:
+def ask_formats(cfg: Config, paso: Pasos) -> None:
     labels = {"webp": "WEBP  (recomendado para web)",
               "avif": "AVIF  (el que menos pesa; navegadores modernos)",
               "jpg":  "JPG   (compatible con todo)",
@@ -41,7 +52,7 @@ def ask_formats(cfg: Config) -> None:
               "tiff": "TIFF  (imprenta)",
               "bmp":  "BMP   (sin comprimir)"}
     opts = [(k, labels[k]) for k in FMT_KEYS]
-    cfg.formats = ask_multichoice("--- 3. A que formato(s) ---", opts, cfg.formats)
+    cfg.formats = ask_multichoice(paso.titulo("A que formato(s)"), opts, cfg.formats)
 
 
 def resolve_sizes(choice: str, cfg: Config) -> Dict[str, Tuple[int, int]]:
@@ -63,7 +74,7 @@ def resolve_sizes(choice: str, cfg: Config) -> Dict[str, Tuple[int, int]]:
     return {"original": (0, 0)}
 
 
-def ask_sizes(cfg: Config) -> None:
+def ask_sizes(cfg: Config, paso: Pasos) -> None:
     opts = [("original", "Mantener el tamano original"),
             ("thumb", "Miniatura  (max 300 px)"),
             ("medium", "Mediano    (max 800 px)"),
@@ -73,25 +84,25 @@ def ask_sizes(cfg: Config) -> None:
             ("custom", "Tamano personalizado (yo escribo los pixeles)")]
     current = list(cfg.sizes)
     default = current[0] if len(current) == 1 and current[0] in dict(opts) else "varios"
-    choice = ask_single_choice("--- 4. A que tamano ---", opts, default_key=default)
+    choice = ask_single_choice(paso.titulo("A que tamano"), opts, default_key=default)
     cfg.sizes = resolve_sizes(choice, cfg)
 
 
-def ask_fit(cfg: Config) -> None:
+def ask_fit(cfg: Config, paso: Pasos) -> None:
     if all(d == (0, 0) for d in cfg.sizes.values()):
         return
     opts = [("ajustar", "Ajustar   - cabe dentro de la medida, respeta la proporcion"),
             ("recortar", "Recortar  - medida exacta, recorta lo que sobra (fichas de producto)"),
             ("rellenar", "Rellenar  - medida exacta, anade fondo alrededor (no recorta nada)")]
-    cfg.fit_mode = ask_single_choice("--- 5. Como encajar en la medida ---", opts,
+    cfg.fit_mode = ask_single_choice(paso.titulo("Como encajar en la medida"), opts,
                                      default_key=cfg.fit_mode)
     if cfg.fit_mode == "rellenar":
         cfg.pad_color = ask("   Color de fondo (blanco, negro, gris o #rrggbb)", cfg.pad_color)
 
 
-def ask_quality(cfg: Config) -> None:
+def ask_quality(cfg: Config, paso: Pasos) -> None:
     con_calidad = [f for f in cfg.formats if HAS_QUALITY[f]]
-    section("--- 6. Calidad ---")
+    section(paso.titulo("Calidad"))
     if not con_calidad:
         print(c("   (No aplica a los formatos elegidos.)", "dim"))
         return
@@ -103,8 +114,8 @@ def ask_quality(cfg: Config) -> None:
                                  cfg.quality.get(f, DEFAULT_QUALITY.get(f, 82)), 1, 100)
 
 
-def ask_naming(cfg: Config) -> None:
-    section("--- 7. Nombre de los archivos ---")
+def ask_naming(cfg: Config, paso: Pasos) -> None:
+    section(paso.titulo("Nombre de los archivos"))
     tiene = bool(cfg.seo_prefix)
     if ask_yes_no("Quieres renombrarlos con un nombre SEO?", default_yes=tiene):
         cfg.seo_prefix = ask("   Escribe el nombre base (ej: playa-mojacar)",
@@ -115,8 +126,8 @@ def ask_naming(cfg: Config) -> None:
         cfg.seo_prefix = ""
 
 
-def ask_advanced(cfg: Config) -> None:
-    section("--- 8. Opciones avanzadas ---")
+def ask_advanced(cfg: Config, paso: Pasos) -> None:
+    section(paso.titulo("Opciones avanzadas"))
     if not ask_yes_no("Quieres revisarlas? (metadatos, color, subcarpetas...)", default_yes=False):
         return
     cfg.metadata = ask_single_choice(
@@ -151,21 +162,22 @@ def wizard(initial_path: str = "") -> Config:
     print(c("Responde a cada pregunta. Pulsa ENTER para el valor por", "dim"))
     print(c("defecto (lo que aparece entre corchetes).", "dim"))
 
-    section("--- 1. Que quieres convertir ---")
+    paso = Pasos()
+    section(paso.titulo("Que quieres convertir"))
     if initial_path and os.path.exists(initial_path):
         print("   %s %s" % (c("[ok]", "green", "bold"), initial_path))
         path = initial_path
     else:
         path = ask_path("Carpeta con las imagenes (o un solo archivo)")
 
-    cfg = choose_starting_point(last_config())
+    cfg = choose_starting_point(last_config(), paso)
     cfg.input_path = path
 
-    ask_formats(cfg)
-    ask_sizes(cfg)
-    ask_fit(cfg)
-    ask_quality(cfg)
-    ask_naming(cfg)
-    ask_advanced(cfg)
+    ask_formats(cfg, paso)
+    ask_sizes(cfg, paso)
+    ask_fit(cfg, paso)
+    ask_quality(cfg, paso)
+    ask_naming(cfg, paso)
+    ask_advanced(cfg, paso)
     cfg.validate()
     return cfg

@@ -147,7 +147,16 @@ def make_dirs(jobs: List[Job]) -> None:
 # Tratamiento de imagen
 # ---------------------------------------------------------------------------
 
+# Solo estos formatos pueden traer una animacion. Hace falta mirarlo porque
+# los JPEG de iPhone son MPO (llevan una segunda imagen incrustada) y declaran
+# n_frames = 2 sin estar animados: tratarlos como animacion se saltaba la
+# rotacion EXIF y el perfil de color, y salian tumbados.
+ANIMATED_FORMATS = {"GIF", "WEBP", "PNG", "APNG", "AVIF"}
+
+
 def is_animated(img: Image.Image) -> bool:
+    if (getattr(img, "format", "") or "").upper() not in ANIMATED_FORMATS:
+        return False
     return getattr(img, "n_frames", 1) > 1
 
 

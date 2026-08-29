@@ -5,36 +5,43 @@ cd /d "%~dp0"
 
 echo ============================================================
 echo   GENERADOR DE imagenes.exe
-echo   (esto solo hay que hacerlo UNA vez, en un PC con Python)
 echo ============================================================
 echo.
 
-rem --- Detectar Python (python o py) ---
 set "PY="
 where python >nul 2>nul && set "PY=python"
 if not defined PY ( where py >nul 2>nul && set "PY=py" )
 if not defined PY (
     echo [ERROR] No se ha encontrado Python.
     echo Instalalo desde https://www.python.org/downloads/  ^(marca "Add to PATH"^).
-    echo.
     pause
     exit /b 1
 )
 echo Usando Python: %PY%
 echo.
 
-echo [1/3] Instalando herramientas (Pillow y PyInstaller)...
-%PY% -m pip install --user --upgrade pip >nul
-%PY% -m pip install --user Pillow pyinstaller
+echo [1/4] Instalando dependencias...
+%PY% -m pip install --user --upgrade pip >nul 2>nul
+%PY% -m pip install --user -r requirements.txt
 if errorlevel 1 (
-    echo [ERROR] No se pudieron instalar las herramientas.
+    echo [ERROR] No se pudieron instalar las dependencias.
     pause
     exit /b 1
 )
 echo.
 
-echo [2/3] Compilando el ejecutable...
-%PY% -m PyInstaller --onefile --console --name imagenes --clean imagenes.py
+echo [2/4] Pasando las pruebas...
+%PY% -m pytest tests -q
+if errorlevel 1 (
+    echo.
+    echo [AVISO] Hay pruebas que fallan.
+    choice /c SN /m "Compilar de todas formas"
+    if errorlevel 2 exit /b 1
+)
+echo.
+
+echo [3/4] Compilando el ejecutable...
+%PY% -m PyInstaller --clean --noconfirm imagenes.spec
 if errorlevel 1 (
     echo [ERROR] Fallo la compilacion.
     pause
@@ -42,11 +49,9 @@ if errorlevel 1 (
 )
 echo.
 
-echo [3/3] Listo.
-echo El ejecutable esta en:  "%~dp0dist\imagenes.exe"
-echo Copia ese unico archivo a cualquier PC Windows y ejecutalo con doble clic
-echo o desde la terminal escribiendo:  imagenes
+echo [4/4] Listo:  "%~dp0dist\imagenes.exe"
 echo.
-echo (Puedes borrar las carpetas build y __pycache__ y el archivo imagenes.spec)
+echo Ahora puedes ejecutar INSTALAR.bat para instalarlo en este equipo,
+echo o copiar dist\imagenes.exe a cualquier PC Windows.
 echo.
 pause

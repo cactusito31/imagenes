@@ -1,0 +1,9 @@
+# Necesario
+Pillow>=11.3          # 11.3 es la primera que trae AVIF de serie
+
+# Opcional: lectura de fotos HEIC/HEIF de iPhone
+pillow-heif>=0.16
+
+# Solo para desarrollar
+pytest>=8.0
+pyinstaller>=6.0

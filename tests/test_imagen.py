@@ -161,3 +161,24 @@ def test_archivo_corrupto_no_tumba_la_tanda(tmp_path):
     assert os.path.exists(os.path.join(out, "buena.webp"))
     assert sum(r.errors for r in results) == 1
     assert sum(r.written for r in results) == 1
+
+
+def test_jpeg_mpo_de_iphone_no_se_toma_por_animado(tmp_path):
+    """Los JPEG de iPhone son MPO y declaran n_frames=2 sin estar animados.
+    Si se tratan como animacion se salta la rotacion EXIF y salen tumbados."""
+    base = str(tmp_path)
+    principal = Image.new("RGB", (800, 400), (200, 80, 60))
+    secundaria = Image.new("RGB", (800, 400), (60, 80, 200))
+    exif = Image.Exif()
+    exif[274] = 6                                   # girada 90 grados
+    p = os.path.join(base, "mpo.jpg")
+    principal.save(p, "MPO", save_all=True, append_images=[secundaria], exif=exif)
+
+    with Image.open(p) as im:
+        assert getattr(im, "n_frames", 1) == 2, "el fixture no es MPO"
+        assert core.is_animated(im) is False, "un MPO no es una animacion"
+
+    cfg = Config(input_path=base, formats=["webp"], sizes={"large": (1600, 1600)})
+    out, _ = convertir(cfg)
+    with Image.open(os.path.join(out, "mpo.webp")) as im:
+        assert im.size == (400, 800), "no se ha aplicado la rotacion EXIF"

@@ -4,34 +4,50 @@ title Desinstalar Imagenes
 
 set "APPNAME=Imagenes"
 set "APPDIR=%LOCALAPPDATA%\%APPNAME%"
+set "CFGDIR=%APPDATA%\%APPNAME%"
+
+if "%LOCALAPPDATA%"=="" (
+    echo [ERROR] La variable LOCALAPPDATA esta vacia. Abortado por seguridad.
+    pause
+    exit /b 1
+)
 
 echo ============================================================
 echo   DESINSTALADOR de %APPNAME%
 echo ============================================================
-echo Esto quitara los accesos directos, el PATH, el registro y la
-echo carpeta:  %APPDIR%
+echo Se quitaran los accesos directos, el menu contextual, el PATH,
+echo el registro y la carpeta:
+echo   %APPDIR%
 echo.
 choice /c SN /m "Seguro que quieres desinstalar"
 if errorlevel 2 ( echo Cancelado. & pause & exit /b 0 )
 
 echo.
-echo - Quitando accesos directos y PATH...
+echo - Quitando accesos directos, menu contextual, registro y PATH...
 if exist "%APPDIR%\accesos_path.ps1" (
     powershell -NoProfile -ExecutionPolicy Bypass -File "%APPDIR%\accesos_path.ps1" -Action uninstall -AppDir "%APPDIR%" -AppName "%APPNAME%"
 ) else (
     powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0accesos_path.ps1" -Action uninstall -AppDir "%APPDIR%" -AppName "%APPNAME%"
 )
-
-echo - Quitando del registro (Agregar o quitar programas)...
 reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\%APPNAME%" /f >nul 2>nul
 
-echo - (Opcional) desinstalando el paquete pip si existe...
-where python >nul 2>nul && python -m pip uninstall -y imagenes-cli >nul 2>nul
-where py     >nul 2>nul && py -m pip uninstall -y imagenes-cli >nul 2>nul
+echo.
+echo Tus presets y la ultima configuracion estan en:
+echo   %CFGDIR%
+choice /c SN /m "Quieres borrarlos tambien"
+if errorlevel 2 (
+    echo   Se conservan.
+) else (
+    if not "%APPDATA%"=="" if exist "%CFGDIR%" rmdir /s /q "%CFGDIR%" 2>nul
+    echo   Borrados.
+)
 
+echo.
 echo - Borrando la carpeta de instalacion...
 echo.
 echo Desinstalacion completada. Puedes cerrar esta ventana.
+rem El .bat se esta ejecutando desde dentro de la carpeta que hay que borrar:
+rem se lanza un proceso aparte que espera a que este termine.
 if /i "%~dp0"=="%APPDIR%\" (
     start "" /min cmd /c "timeout /t 1 >nul & rmdir /s /q ""%APPDIR%"""
 ) else (
