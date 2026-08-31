@@ -10,7 +10,8 @@ a = Analysis(
     # que viaje dentro del .exe para poder leer fotos HEIC de iPhone.
     hiddenimports=[
         "imagenes", "imagenes.cli", "imagenes.config", "imagenes.core",
-        "imagenes.report", "imagenes.runner", "imagenes.ui", "imagenes.wizard",
+        "imagenes.report", "imagenes.runner", "imagenes.ui", "imagenes.watch",
+        "imagenes.wizard",
         "PIL.ImageCms", "PIL.ImageSequence", "pillow_heif",
     ],
     hookspath=[],
