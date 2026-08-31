@@ -139,22 +139,6 @@ CALIDADES ORIENTATIVAS
   JPG  85   suficiente para casi todo
 
 
-RESPALDO DEL CODIGO
--------------------
-Despues de cada commit se guarda solo todo el historial del repositorio en
-un unico archivo dentro de OneDrive:
-
-  OneDrive - nbGroup...espaldos-git\imagenes-app.bundle
-
-Para recuperarlo en cualquier equipo:
-
-  git clone "...espaldos-git\imagenes-app.bundle" imagenes-app
-
-RESPALDAR.bat lo fuerza a mano. Esto es una red de seguridad, no un remoto
-de verdad: en cuanto haya uno (GitHub, GitLab o servidor propio), lo suyo es
-anadirlo con  git remote add origin URL  y hacer push.
-
-
 DESARROLLO
 ----------
   imagenes/        el codigo (cli, config, core, report, runner, ui,
