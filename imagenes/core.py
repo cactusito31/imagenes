@@ -27,12 +27,18 @@ DOBLE_BARRA = BARRA * 2
 PREFIJO_LARGO = DOBLE_BARRA + "?" + BARRA
 
 
-def ruta_larga(path: str) -> str:
-    """Prefija la ruta para saltarse el limite de 260 caracteres de Windows."""
+def ruta_larga(path: str, forzar: bool = False) -> str:
+    """Prefija la ruta para saltarse el limite de 260 caracteres de Windows.
+
+    Con forzar=True se prefija aunque la ruta sea corta. Hace falta al recorrer
+    carpetas: la raiz puede ser corta y las de dentro no, y os.walk hereda el
+    prefijo de la raiz. Sin esto, os.walk se para en lo hondo y devuelve una
+    lista vacia sin dar ningun error.
+    """
     if os.name != "nt":
         return path
     p = os.path.abspath(path)
-    if p.startswith(PREFIJO_LARGO) or len(p) < LIMITE_RUTA:
+    if p.startswith(PREFIJO_LARGO) or (len(p) < LIMITE_RUTA and not forzar):
         return p
     if p.startswith(DOBLE_BARRA):
         return PREFIJO_LARGO + "UNC" + os.sep + p[2:]
@@ -139,7 +145,7 @@ def collect_inputs(path: str, exclude_dir: str = "", recursive: bool = True) -> 
     files: List[str] = []
     # Se recorre con el prefijo de ruta larga: sin el, os.walk no entra en las
     # carpetas hondas y se saltaba las imagenes SIN dar ningun error.
-    for dirpath, dirnames, names in os.walk(ruta_larga(path)):
+    for dirpath, dirnames, names in os.walk(ruta_larga(path, forzar=True)):
         dirpath = quitar_prefijo(dirpath)
         here = os.path.normcase(os.path.abspath(dirpath))
         # Comparar por segmentos de ruta: 'imagenes_convertidas_old' no debe

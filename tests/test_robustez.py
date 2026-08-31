@@ -140,7 +140,7 @@ def test_convierte_aunque_la_ruta_pase_de_260(tmp_path):
     # Hasta para CONTAR los resultados hace falta el prefijo: os.walk a secas
     # no entra en las carpetas hondas y devolveria una lista vacia.
     generados = [os.path.join(core.quitar_prefijo(r), n)
-                 for r, _, fs in os.walk(core.ruta_larga(out)) for n in fs
+                 for r, _, fs in os.walk(core.ruta_larga(out, forzar=True)) for n in fs
                  if n.endswith(".webp")]
     assert len(generados) == 2, [m for r in results for m in r.messages]
     assert max(len(p) for p in generados) > 260, "la prueba no llega a forzar el limite"
