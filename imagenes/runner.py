@@ -54,7 +54,8 @@ def execute(cfg: Config, jobs: List[core.Job], out_dir: str, quiet: bool = False
 
     bar = Progress(total, enabled=not quiet)
     bar.update(0, "")
-    results = core.convert_all(cfg, jobs, on_progress=bar.update)
+    lote = core.convert_all(cfg, jobs, on_progress=bar.update)
+    results = lote.results
     bar.clear()
 
     rows, ok, written, skipped, errors = [], 0, 0, 0, 0
@@ -86,8 +87,10 @@ def execute(cfg: Config, jobs: List[core.Job], out_dir: str, quiet: bool = False
         snip_path = report.write_snippet(rows, out_dir)
 
     t = report.totals(rows)
-    line_color = "green" if errors == 0 else "yellow"
+    line_color = "green" if errors == 0 and not lote.interrupted else "yellow"
     print("\n" + c("=" * 58, line_color))
+    if lote.interrupted:
+        print(c("  INTERRUMPIDO. Esto es lo que dio tiempo a hacer:", "bold", "yellow"))
     print(c("  Listo. Imagenes: %d   Archivos creados: %d   Omitidos: %d   Errores: %d"
             % (ok, written, skipped, errors), "bold", line_color))
     if t["entrada"]:
@@ -101,6 +104,10 @@ def execute(cfg: Config, jobs: List[core.Job], out_dir: str, quiet: bool = False
     if snip_path:
         print(c("  HTML <picture> listo para pegar: %s" % os.path.basename(snip_path), "dim"))
     print(c("=" * 58, line_color))
+    if lote.interrupted:
+        print(c("  Para seguir donde lo dejaste, repite el comando con "
+                "--no-sobrescribir", "dim"))
+        return 130
     return 0 if errors == 0 else 1
 
 

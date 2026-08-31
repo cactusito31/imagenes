@@ -23,8 +23,7 @@ def convertir(cfg):
     inputs = core.collect_inputs(cfg.input_path, exclude_dir=out, recursive=cfg.recursive)
     jobs = core.plan(cfg, inputs)
     core.make_dirs(jobs)
-    results = core.convert_all(cfg, jobs)
-    return out, results
+    return out, core.convert_all(cfg, jobs).results
 
 
 # ---------------------------------------------------------------------------
