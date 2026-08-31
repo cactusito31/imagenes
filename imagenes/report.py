@@ -112,3 +112,22 @@ def totals(rows: List[dict]) -> dict:
     return {"entrada": in_bytes, "salida": out_bytes,
             "ahorro": in_bytes - out_bytes,
             "ahorro_pct": round(100 * (1 - out_bytes / in_bytes), 1) if in_bytes else 0.0}
+
+
+def write_error_log(results, output_dir: str) -> str:
+    """Deja por escrito los problemas: en una tanda larga, cerrar la ventana ya
+    no se lleva por delante la lista de lo que fallo."""
+    tab, salto = chr(9), chr(10)
+    lineas = []
+    for r in results:
+        for nivel, msg in r.messages:
+            if nivel in ("error", "warn"):
+                lineas.append(tab.join([nivel.upper(), r.src, msg]))
+    if not lineas:
+        return ""
+    path = os.path.join(output_dir, "errores.log")
+    cabecera = "# imagenes - problemas de la tanda del " + time.strftime("%Y-%m-%d %H:%M:%S")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(cabecera + salto)
+        f.write(salto.join(lineas) + salto)
+    return path

@@ -37,7 +37,7 @@ def test_ctrl_c_no_procesa_toda_la_cola(tmp_path, monkeypatch):
     jobs = core.plan(cfg, core.collect_inputs(base, exclude_dir=out))
     core.make_dirs(jobs)
 
-    def cortar(hechas, etiqueta):
+    def cortar(hechas, etiqueta, res):
         if hechas >= 2:
             raise KeyboardInterrupt
 

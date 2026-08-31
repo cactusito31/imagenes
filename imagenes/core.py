@@ -319,19 +319,41 @@ def save_kwargs(fmt: str, cfg: Config, icc: Optional[bytes], exif: Optional[byte
     return kw
 
 
+def _guardar_atomico(guardar, path: str) -> None:
+    """Escribe a un temporal y renombra al terminar.
+
+    Si algo se tuerce a media escritura (disco lleno, corte de luz, Ctrl+C) lo
+    que queda es un .tmp, no un archivo con el nombre bueno y el contenido roto.
+    """
+    destino = ruta_larga(path)
+    temporal = destino + ".tmp"
+    try:
+        guardar(temporal)
+        os.replace(temporal, destino)
+    except BaseException:
+        try:
+            os.remove(temporal)
+        except OSError:
+            pass
+        raise
+
+
 def save_image(img: Image.Image, path: str, fmt: str, cfg: Config,
                icc: Optional[bytes] = None, exif: Optional[bytes] = None) -> None:
     kw = save_kwargs(fmt, cfg, icc, exif)
     pil = PIL_NAME[fmt]
-    path = ruta_larga(path)
-    if fmt == "jpg":
-        try:
-            img.save(path, pil, subsampling="4:2:0", **kw)
-            return
-        except Exception:
-            img.save(path, pil, **kw)
-            return
-    img.save(path, pil, **kw)
+
+    def guardar(destino):
+        if fmt == "jpg":
+            try:
+                img.save(destino, pil, subsampling="4:2:0", **kw)
+                return
+            except Exception:
+                img.save(destino, pil, **kw)
+                return
+        img.save(destino, pil, **kw)
+
+    _guardar_atomico(guardar, path)
 
 
 def save_animation(src: Image.Image, path: str, fmt: str, cfg: Config,
@@ -347,7 +369,7 @@ def save_animation(src: Image.Image, path: str, fmt: str, cfg: Config,
     if fmt == "gif":
         kw.pop("quality", None)
         kw["disposal"] = 2
-    frames[0].save(ruta_larga(path), PIL_NAME[fmt], **kw)
+    _guardar_atomico(lambda destino: frames[0].save(destino, PIL_NAME[fmt], **kw), path)
 
 
 # ---------------------------------------------------------------------------
@@ -508,7 +530,7 @@ def convert_all(cfg: Config, jobs: List[Job], on_progress=None) -> Batch:
             for i, job in enumerate(jobs, 1):
                 lote.results.append(convert_one(job, cfg, pad_rgb, budget, cancel, avif_gate))
                 if on_progress:
-                    on_progress(i, os.path.basename(job.src))
+                    on_progress(i, os.path.basename(job.src), lote.results[-1])
         except KeyboardInterrupt:
             lote.interrupted = True
         return lote
@@ -517,9 +539,10 @@ def convert_all(cfg: Config, jobs: List[Job], on_progress=None) -> Batch:
     futures = {pool.submit(convert_one, j, cfg, pad_rgb, budget, cancel, avif_gate): j for j in jobs}
     try:
         for i, fut in enumerate(as_completed(futures), 1):
-            lote.results.append(fut.result())
+            r = fut.result()
+            lote.results.append(r)
             if on_progress:
-                on_progress(i, os.path.basename(futures[fut].src))
+                on_progress(i, os.path.basename(futures[fut].src), r)
     except KeyboardInterrupt:
         lote.interrupted = True
         cancel.set()

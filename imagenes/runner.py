@@ -47,14 +47,35 @@ def execute(cfg: Config, jobs: List[core.Job], out_dir: str, quiet: bool = False
     workers = cfg.workers or core.default_workers(total)
 
     if not quiet:
-        print("\n" + c("-" * 58, "dim"))
+        print(chr(10) + c("-" * 58, "dim"))
         print("Convirtiendo %s imagen(es) con %s hilo(s)"
               % (c(str(total), "bold"), c(str(workers), "bold")))
         print(c("-" * 58, "dim"))
 
     bar = Progress(total, enabled=not quiet)
     bar.update(0, "")
-    lote = core.convert_all(cfg, jobs, on_progress=bar.update)
+
+    def al_avanzar(hechas, etiqueta, res):
+        # Los problemas se cuentan segun pasan, no al final: en una tanda de
+        # miles de imagenes enterarse al terminar no sirve de nada.
+        problemas = [(n, m) for n, m in res.messages if n != "skip" or not quiet]
+        if problemas:
+            bar.clear()
+            for nivel, msg in problemas:
+                if nivel == "error":
+                    error(msg)
+                elif nivel == "warn":
+                    warn(msg)
+                else:
+                    print(c("  [=] " + msg, "yellow"))
+        if not bar.enabled and res.written:
+            print("  %s %s %s -> %s"
+                  % (c("[ok]", "green", "bold"), os.path.basename(res.src),
+                     c("(%dx%d)" % (res.width, res.height), "dim"),
+                     c("%d archivo(s)" % res.written, "green")))
+        bar.update(hechas, etiqueta)
+
+    lote = core.convert_all(cfg, jobs, on_progress=al_avanzar)
     results = lote.results
     bar.clear()
 
@@ -66,29 +87,16 @@ def execute(cfg: Config, jobs: List[core.Job], out_dir: str, quiet: bool = False
         errors += r.errors
         if r.ok:
             ok += 1
-        for level, msg in r.messages:
-            if quiet and level == "skip":
-                continue
-            if level == "error":
-                error(msg)
-            elif level == "warn":
-                warn(msg)
-            else:
-                print(c("  [=] " + msg, "yellow"))
-        if not quiet and r.written:
-            print("  %s %s %s -> %s"
-                  % (c("[ok]", "green", "bold"), os.path.basename(r.src),
-                     c("(%dx%d)" % (r.width, r.height), "dim"),
-                     c("%d archivo(s)" % r.written, "green")))
 
     csv_path = report.write_csv(rows, out_dir) if rows else ""
+    log_path = report.write_error_log(results, out_dir)
     snip_path = ""
     if rows and cfg.make_snippet and (cfg.multi_size or len(cfg.formats) > 1):
         snip_path = report.write_snippet(rows, out_dir)
 
     t = report.totals(rows)
     line_color = "green" if errors == 0 and not lote.interrupted else "yellow"
-    print("\n" + c("=" * 58, line_color))
+    print(chr(10) + c("=" * 58, line_color))
     if lote.interrupted:
         print(c("  INTERRUMPIDO. Esto es lo que dio tiempo a hacer:", "bold", "yellow"))
     print(c("  Listo. Imagenes: %d   Archivos creados: %d   Omitidos: %d   Errores: %d"
@@ -103,6 +111,8 @@ def execute(cfg: Config, jobs: List[core.Job], out_dir: str, quiet: bool = False
         print(c("  Informe: %s" % os.path.basename(csv_path), "dim"))
     if snip_path:
         print(c("  HTML <picture> listo para pegar: %s" % os.path.basename(snip_path), "dim"))
+    if log_path:
+        print(c("  Problemas anotados en: %s" % os.path.basename(log_path), "yellow"))
     print(c("=" * 58, line_color))
     if lote.interrupted:
         print(c("  Para seguir donde lo dejaste, repite el comando con "
