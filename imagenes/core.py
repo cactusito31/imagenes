@@ -5,12 +5,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
+import fnmatch
+import shutil
 import threading
 
 from PIL import Image, ImageOps, ImageSequence
 
 from . import OUTPUT_FOLDER_NAME
-from .config import (Config, EXT, HAS_ANIMATION, HAS_QUALITY, PIL_NAME,
+from .config import (CARPETA_ORIGINALES, Config, EXT, HAS_ANIMATION, HAS_QUALITY, PIL_NAME,
                      input_extensions, natural_key, parse_color, slugify)
 
 # Fotos de 100+ Mpx (panoramicas, escaneos) son legitimas aqui: subimos el
@@ -117,6 +119,7 @@ class Target:
 class Job:
     src: str
     targets: List[Target] = field(default_factory=list)
+    destino_original: str = ""      # solo si se pide mover los originales
 
 
 @dataclass
@@ -136,12 +139,30 @@ class Result:
 # Entradas
 # ---------------------------------------------------------------------------
 
-def collect_inputs(path: str, exclude_dir: str = "", recursive: bool = True) -> List[str]:
+def esta_excluido(rel: str, patrones) -> bool:
+    """Compara el patron contra la ruta relativa y contra cada tramo suelto,
+    para que tanto 'borradores/*' como 'borradores' o '*.tmp.*' funcionen."""
+    if not patrones:
+        return False
+    rel = rel.replace(os.sep, "/")
+    tramos = rel.split("/")
+    for pat in patrones:
+        pat = pat.replace(os.sep, "/").strip()
+        if fnmatch.fnmatch(rel, pat) or fnmatch.fnmatch(tramos[-1], pat):
+            return True
+        if any(fnmatch.fnmatch(t, pat) for t in tramos[:-1]):
+            return True
+    return False
+
+
+def collect_inputs(path: str, exclude_dir: str = "", recursive: bool = True,
+                   exclude: Optional[List[str]] = None, min_px: int = 0) -> List[str]:
     exts = input_extensions()
     if os.path.isfile(ruta_larga(path)):
         return [path] if path.lower().endswith(exts) else []
 
-    exclude = os.path.normcase(os.path.abspath(exclude_dir)) if exclude_dir else ""
+    # OJO: no reutilizar el nombre 'exclude', que es el de los patrones.
+    dir_excluida = os.path.normcase(os.path.abspath(exclude_dir)) if exclude_dir else ""
     files: List[str] = []
     # Se recorre con el prefijo de ruta larga: sin el, os.walk no entra en las
     # carpetas hondas y se saltaba las imagenes SIN dar ningun error.
@@ -150,16 +171,34 @@ def collect_inputs(path: str, exclude_dir: str = "", recursive: bool = True) -> 
         here = os.path.normcase(os.path.abspath(dirpath))
         # Comparar por segmentos de ruta: 'imagenes_convertidas_old' no debe
         # confundirse con 'imagenes_convertidas'.
-        if exclude and (here == exclude or here.startswith(exclude + os.sep)):
+        if dir_excluida and (here == dir_excluida
+                             or here.startswith(dir_excluida + os.sep)):
             dirnames[:] = []
             continue
         for n in names:
-            if n.lower().endswith(exts):
-                files.append(os.path.join(dirpath, n))
+            if not n.lower().endswith(exts):
+                continue
+            completo = os.path.join(dirpath, n)
+            if exclude:
+                rel = os.path.relpath(completo, os.path.abspath(path))
+                if esta_excluido(rel, exclude):
+                    continue
+            files.append(completo)
         if not recursive:
             dirnames[:] = []
+    if min_px:
+        files = [f for f in files if _lado_mayor(f) >= min_px]
     # Ordena por ruta completa para que las carpetas no se entremezclen.
     return sorted(files, key=lambda p: [natural_key(part) for part in p.split(os.sep)])
+
+
+def _lado_mayor(path: str) -> int:
+    """Lee solo la cabecera: no hace falta descomprimir para saber la medida."""
+    try:
+        with Image.open(ruta_larga(path)) as im:
+            return max(im.size)
+    except Exception:
+        return 0
 
 
 def resolve_output_dir(cfg: Config) -> str:
@@ -221,6 +260,9 @@ def plan(cfg: Config, inputs: List[str]) -> List[Job]:
                     key = os.path.normcase(path)
                 used[key] = src
                 job.targets.append(Target(size_name, dims, fmt, path))
+        if cfg.originales == "mover":
+            job.destino_original = os.path.join(out_root, CARPETA_ORIGINALES,
+                                                rel_dir, os.path.basename(src))
         jobs.append(job)
     return jobs
 
@@ -239,6 +281,23 @@ def make_dirs(jobs: List[Job]) -> None:
 # los JPEG de iPhone son MPO (llevan una segunda imagen incrustada) y declaran
 # n_frames = 2 sin estar animados: tratarlos como animacion se saltaba la
 # rotacion EXIF y el perfil de color, y salian tumbados.
+CLAVE_POR_FORMATO_PIL = {v: k for k, v in PIL_NAME.items()}
+CLAVE_POR_FORMATO_PIL["MPO"] = "jpg"
+
+
+def ya_esta_bien(clave_origen: str, medida, t: Target, cfg: Config) -> bool:
+    """Cierto si rehacer este archivo no aportaria nada: mismo formato y la
+    imagen ya cabe en la medida pedida. Evita recomprimir y perder calidad."""
+    if not cfg.no_recompress or clave_origen != t.fmt:
+        return False
+    ancho, alto = t.dims
+    if not ancho or not alto:
+        return True
+    if cfg.fit_mode != "ajustar":
+        return False        # recortar y rellenar cambian la medida siempre
+    return medida[0] <= ancho and medida[1] <= alto
+
+
 ANIMATED_FORMATS = {"GIF", "WEBP", "PNG", "APNG", "AVIF"}
 
 
@@ -409,6 +468,7 @@ def convert_one(job: Job, cfg: Config, pad_rgb: Tuple[int, int, int],
             reservado = budget.acquire(w * h * BYTES_POR_PIXEL_DEFECTO)
 
             animated = is_animated(im)
+            clave_origen = CLAVE_POR_FORMATO_PIL.get((im.format or "").upper(), "")
             icc = im.info.get("icc_profile")
 
             if animated:
@@ -435,6 +495,12 @@ def convert_one(job: Job, cfg: Config, pad_rgb: Tuple[int, int, int],
                     if os.path.exists(ruta_larga(t.path)) and not cfg.overwrite:
                         res.skipped += 1
                         res.messages.append(("skip", "ya existe, se omite: " + t.path))
+                        continue
+                    if ya_esta_bien(clave_origen, (res.width, res.height), t, cfg):
+                        res.skipped += 1
+                        res.messages.append(
+                            ("skip", "%s ya esta en %s y dentro de la medida, no se toca"
+                             % (name, t.fmt.upper())))
                         continue
                     try:
                         if animated and HAS_ANIMATION[t.fmt]:
@@ -479,6 +545,8 @@ def convert_one(job: Job, cfg: Config, pad_rgb: Tuple[int, int, int],
                 # Fuera la copia de este tamano antes de pasar al siguiente.
                 redimensionada = None
         res.ok = res.errors == 0
+        if res.ok and res.written and cfg.originales != "dejar":
+            _apartar_original(job, cfg, res)
     except Exception as e:
         res.errors += 1
         res.ok = False
@@ -488,6 +556,26 @@ def convert_one(job: Job, cfg: Config, pad_rgb: Tuple[int, int, int],
         if reservado:
             budget.release(reservado)
     return res
+
+
+def _apartar_original(job: Job, cfg: Config, res: Result) -> None:
+    """Mueve o borra el original, pero SOLO si todo salio bien y se escribio
+    algo. Ante la menor duda, el original se queda donde esta."""
+    try:
+        if cfg.originales == "mover" and job.destino_original:
+            os.makedirs(ruta_larga(os.path.dirname(job.destino_original)), exist_ok=True)
+            destino = job.destino_original
+            n = 2
+            while os.path.exists(ruta_larga(destino)):
+                raiz, ext = os.path.splitext(job.destino_original)
+                destino = "%s-%d%s" % (raiz, n, ext)
+                n += 1
+            shutil.move(ruta_larga(job.src), ruta_larga(destino))
+        elif cfg.originales == "borrar":
+            os.remove(ruta_larga(job.src))
+    except OSError as e:
+        res.messages.append(("warn", "no se pudo apartar el original %s (%s)"
+                             % (os.path.basename(job.src), e)))
 
 
 def _explicar(e: Exception, path: str) -> str:

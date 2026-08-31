@@ -4,14 +4,16 @@ import os
 from typing import List, Tuple
 
 from . import OUTPUT_FOLDER_NAME
-from .config import Config, slugify
+from .config import CARPETA_ORIGINALES, Config, slugify
 from . import core, report
 from .ui import Progress, c, error, human, section, warn
 
 
 def prepare(cfg: Config) -> Tuple[List[str], List[core.Job], str]:
     out_dir = core.resolve_output_dir(cfg)
-    inputs = core.collect_inputs(cfg.input_path, exclude_dir=out_dir, recursive=cfg.recursive)
+    inputs = core.collect_inputs(cfg.input_path, exclude_dir=out_dir,
+                                 recursive=cfg.recursive, exclude=cfg.exclude,
+                                 min_px=cfg.min_px)
     jobs = core.plan(cfg, inputs) if inputs else []
     return inputs, jobs, out_dir
 
@@ -38,6 +40,17 @@ def print_summary(cfg: Config, inputs: List[str], jobs: List[core.Job], out_dir:
                                  else "imagenes sueltas (un solo tamano)"), "dim"))
     if not cfg.overwrite:
         print(c("             no se sobrescribe lo que ya exista", "dim"))
+    if cfg.exclude:
+        print("   Excluye : %s" % c(", ".join(cfg.exclude), "cyan"))
+    if cfg.min_px:
+        print("   Minimo  : se saltan las de menos de %s px de lado" % c(str(cfg.min_px), "cyan"))
+    if cfg.no_recompress:
+        print(c("             no se rehace lo que ya este en el formato y la medida", "dim"))
+    if cfg.originales == "mover":
+        print("   %s" % c("Los originales se moveran a " + CARPETA_ORIGINALES, "yellow"))
+    elif cfg.originales == "borrar":
+        print("   %s" % c("ATENCION: los originales se BORRARAN al convertirlos bien",
+                          "bold", "red"))
     print(c("-" * 58, "magenta"))
 
 

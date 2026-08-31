@@ -42,6 +42,8 @@ SIZE_PRESETS = {
 FIT_MODES = ("ajustar", "recortar", "rellenar")
 METADATA_MODES = ("limpiar", "conservar")
 COLOR_MODES = ("conservar", "srgb")
+ORIGINALES_MODES = ("dejar", "mover", "borrar")
+CARPETA_ORIGINALES = "originales_procesados"
 
 
 def has_heif_support() -> bool:
@@ -74,6 +76,10 @@ class Config:
     color: str = "conservar"
     workers: int = 0          # 0 = automatico
     make_snippet: bool = True
+    exclude: List[str] = field(default_factory=list)   # patrones tipo *.tmp, borradores/*
+    min_px: int = 0           # se saltan las imagenes cuyo lado mayor no llegue
+    no_recompress: bool = False   # no rehacer lo que ya esta en el formato y medida
+    originales: str = "dejar"     # dejar | mover | borrar
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -107,6 +113,10 @@ class Config:
             self.metadata = "limpiar"
         if self.color not in COLOR_MODES:
             self.color = "conservar"
+        if self.originales not in ORIGINALES_MODES:
+            self.originales = "dejar"
+        self.min_px = max(0, int(self.min_px))
+        self.exclude = [str(x) for x in (self.exclude or []) if str(x).strip()]
         if not self.sizes:
             self.sizes = {"original": (0, 0)}
         for k in ("jpg", "webp", "avif"):

@@ -1,4 +1,4 @@
-IMAGENES 2.0 - conversor de imagenes por terminal
+IMAGENES 2.1 - conversor de imagenes por terminal
 =================================================
 
 Convierte y redimensiona lotes de imagenes a WEBP, AVIF, JPG, PNG, GIF,
@@ -35,7 +35,11 @@ DOS FORMAS DE USARLO
    imagenes C:\fotos -f jpg -s 1000x1000 --encaje recortar
    imagenes C:\fotos --preset woo --seo silla-oficina
    imagenes C:\fotos --preset web --simular      (ensena lo que haria)
+   imagenes C:otos --excluir borradores/* --min-px 400
+   imagenes C:otos --preset web --originales mover
+   imagenes C:otos --preset web --vigilar      (se queda esperando)
    imagenes --presets                            (lista los presets)
+   imagenes --diagnostico                        (que hay disponible)
    imagenes --help                               (todas las opciones)
 
 
@@ -68,6 +72,10 @@ Ademas genera:
   - reporte-FECHA.csv   una fila por archivo, con el ahorro conseguido.
   - snippet.html        el <picture> con srcset ya montado, listo para
                         pegar (solo si hay varios tamanos o formatos).
+  - errores.log         solo si hubo problemas, para poder mirarlos luego.
+
+Se escribe siempre a un .tmp y se renombra al terminar, asi que un corte a
+media faena no deja archivos con el nombre bueno y el contenido roto.
 
 
 DETALLES QUE IMPORTAN
@@ -89,7 +97,32 @@ DETALLES QUE IMPORTAN
                AVIF, PNG o GIF. En JPG, TIFF y BMP no se puede: se guarda
                el primer fotograma y te avisa.
 
+  FILTROS      --excluir borradores/*   se salta lo que case (repetible)
+               --min-px 400             se salta iconos y firmas
+               --no-recomprimir         no rehace lo que ya esta bien,
+                                        para no perder calidad dos veces
+
+  ORIGINALES   --originales dejar    los deja donde estan (por defecto)
+               --originales mover    los aparta a originales_procesados
+               --originales borrar   los borra, y SOLO si la conversion
+                                     salio sin un solo error
+               Si algo falla, el original no se toca. Nunca.
+
+  VIGILAR      --vigilar             deja la carpeta abierta y convierte lo
+                                     que vaya llegando. Ctrl+C para salir.
+                                     Espera a que el archivo deje de crecer,
+                                     para no coger una foto a medio copiar.
+
+  CTRL+C       Corta de verdad: cancela lo que queda en cola, dice lo que dio
+               tiempo a hacer y te recuerda como seguir (--no-sobrescribir).
+
   VELOCIDAD    Convierte en paralelo. Con --hilos N puedes fijar cuantos.
+               La memoria tiene techo: las conversiones simultaneas se frenan
+               solas si entran panoramicas o escaneos grandes (medido: 8
+               imagenes de 100 Mpx pasan de 9,5 GB a 1,2 GB).
+
+  RUTAS LARGAS Windows corta en 260 caracteres. Se sortea el limite, pero si
+               aun asi falla, usa -o con una carpeta de destino mas corta.
                Medido con 7 fotos de movil de 3,3 MB: 5,3 s la version 1
                contra 2,6 s esta, de los cuales 1,3 s son el arranque del
                .exe (es el precio de que sea un unico archivo portable).
@@ -108,6 +141,7 @@ CALIDADES ORIENTATIVAS
 
 DESARROLLO
 ----------
-  imagenes/        el codigo (cli, config, core, report, runner, ui, wizard)
-  tests/           45 pruebas:  python -m pytest tests -q
+  imagenes/        el codigo (cli, config, core, report, runner, ui,
+                   watch, wizard)
+  tests/           76 pruebas:  python -m pytest tests -q
   imagenes.spec    receta de PyInstaller

@@ -4,7 +4,7 @@ import os
 from typing import Dict, Tuple
 
 from . import __version__
-from .config import (Config, DEFAULT_QUALITY, FMT_KEYS, HAS_QUALITY,
+from .config import (CARPETA_ORIGINALES, Config, DEFAULT_QUALITY, FMT_KEYS, HAS_QUALITY,
                      SIZE_PRESETS, all_presets, get_preset, last_config,
                      save_preset, slugify)
 from .ui import (ask, ask_int, ask_multichoice, ask_path, ask_single_choice,
@@ -143,6 +143,29 @@ def ask_advanced(cfg: Config, paso: Pasos) -> None:
     cfg.recursive = ask_yes_no("   Buscar tambien dentro de las subcarpetas?", cfg.recursive)
     cfg.overwrite = ask_yes_no("   Sobrescribir los archivos que ya existan?", cfg.overwrite)
     cfg.make_snippet = ask_yes_no("   Generar el snippet.html con picture/srcset?", cfg.make_snippet)
+    cfg.no_recompress = ask_yes_no(
+        "   Saltar lo que ya este en ese formato y quepa en la medida?", cfg.no_recompress)
+
+    patrones = ask("   Excluir algo? (patrones separados por coma, ENTER para nada)",
+                   ", ".join(cfg.exclude))
+    cfg.exclude = [x.strip() for x in patrones.split(",") if x.strip()]
+
+    if ask_yes_no("   Saltar las imagenes pequenas (iconos, firmas)?", bool(cfg.min_px)):
+        cfg.min_px = ask_int("   Lado minimo en pixeles", cfg.min_px or 400, 1, 20000)
+    else:
+        cfg.min_px = 0
+
+    cfg.originales = ask_single_choice(
+        "   Que hacer con los originales al terminar:",
+        [("dejar", "Dejarlos donde estan  - lo normal"),
+         ("mover", "Moverlos a la carpeta " + CARPETA_ORIGINALES),
+         ("borrar", "BORRARLOS  - solo si la conversion sale bien. No hay vuelta atras")],
+        default_key=cfg.originales)
+    if cfg.originales == "borrar":
+        print(c("   Los originales se borraran. Solo se borra lo que se haya", "bold", "red"))
+        print(c("   convertido sin ningun error.", "bold", "red"))
+        if not ask_yes_no("   Seguro?", default_yes=False):
+            cfg.originales = "dejar"
 
 
 def offer_save_preset(cfg: Config) -> None:

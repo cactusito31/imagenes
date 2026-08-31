@@ -1,5 +1,54 @@
 # Historial de cambios
 
+## 2.1.0 - 2026-08-31
+
+Tres fallos encontrados midiendo, no mirando, mas robustez y filtros.
+
+### Fallos corregidos
+
+- **Ctrl+C no paraba nada.** El pool de hilos esperaba a toda la cola al salir.
+  Medido con 168 trabajos: antes se procesaban los 168 y tardaba 5,2 s en
+  devolver el control; ahora se paran en 10 y tarda 0,8 s. Se informa de lo que
+  dio tiempo a hacer y se sale con codigo 130.
+- **La memoria no tenia techo.** Medido: 2,6 GB con 112 fotos de 12 Mpx, y
+  9,5 GB con 8 panoramicas de 100 Mpx. Dos frenos que salen de medir:
+  un presupuesto de bytes descomprimidos en vuelo (las panoramicas bajan de
+  9,5 GB a 1,2 GB) y un tope de codificaciones AVIF simultaneas, que cuestan
+  unos 390 MB cada una y por encima de 4 no dan ni un segundo de mejora
+  (62 s con 4 hilos, 66 s con 8). El caso normal pasa de 2.580 a 1.982 MB con
+  el mismo tiempo.
+- **Rutas de mas de 260 caracteres.** Al replicar el arbol de carpetas, la
+  salida se alargo y en Windows fallaba todo con un enganoso `No such file or
+  directory`. Ahora se prefijan las rutas y el error dice lo que pasa de
+  verdad. De paso aparecio algo peor: `os.walk` sobre una carpeta honda no
+  entra y devuelve una lista vacia **sin dar error**, asi que esas imagenes se
+  saltaban en silencio.
+- **`collect_inputs` pisaba su propio parametro.** La variable de la carpeta
+  excluida se llamaba igual que la de los patrones de exclusion.
+- El epilogo de `--help` salia roto: `C:otos` se interpretaba como un salto
+  de pagina.
+
+### Novedades
+
+- **Escritura atomica**: se escribe a un `.tmp` y se renombra al final. Un
+  corte a media escritura deja un `.tmp`, no un archivo con el nombre bueno y
+  el contenido roto.
+- **`errores.log`** junto al informe: cerrar la ventana ya no se lleva por
+  delante la lista de lo que fallo.
+- **Los avisos salen segun ocurren**, no todos al terminar.
+- **`--vigilar [SEGUNDOS]`**: deja la carpeta abierta y convierte lo que vaya
+  llegando. No toca un archivo hasta que deja de crecer, para no convertir una
+  foto a medio copiar.
+- **`--originales dejar|mover|borrar`**: aparta o borra el original, pero solo
+  si la conversion salio sin un solo error y se escribio algo.
+- **`--excluir PATRON`**, repetible: `borradores/*`, `*.tmp.*`.
+- **`--min-px N`**: se salta iconos y firmas.
+- **`--no-recomprimir`**: no rehace lo que ya esta en ese formato y cabe en la
+  medida, para no perder calidad por recomprimir.
+- El asistente pregunta por todo lo anterior en las opciones avanzadas, y
+  pide confirmacion antes de borrar originales.
+- **76 pruebas**, incluidas las primeras del asistente.
+
 ## 2.0.0 - 2026-08-29
 
 Reescritura del motor. El codigo pasa de un solo archivo a un paquete con

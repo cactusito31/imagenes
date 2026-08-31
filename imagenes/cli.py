@@ -12,24 +12,41 @@ from .config import (Config, FMT_KEYS, HAS_ANIMATION, PIL_NAME, all_presets,
 from . import runner
 from .ui import ask_yes_no, banner, c, clean_path, error, section
 
-EPILOGO = """ejemplos:
-  imagenes                                  asistente guiado de siempre
-  imagenes C:\fotos                         asistente con la carpeta ya puesta
-                                            (tambien vale arrastrarla sobre el .exe)
-  imagenes C:\fotos --preset web            sin preguntas, con el preset web
-  imagenes C:\fotos -f webp,avif -s 800,1600
-  imagenes C:\fotos -f jpg -s 1000x1000 --encaje recortar
-  imagenes C:\fotos --preset woo --seo silla-oficina
-  imagenes C:\fotos --preset web --simular  ensena lo que haria, sin tocar nada
-  imagenes --presets                        lista los presets disponibles
-"""
+_EJEMPLOS = [
+    ("imagenes", "asistente guiado de siempre"),
+    ("imagenes RUTA", "asistente con la carpeta ya puesta"),
+    ("", "(tambien vale arrastrar la carpeta sobre el .exe)"),
+    ("imagenes RUTA --preset web", "sin preguntas, con el preset web"),
+    ("imagenes RUTA -f webp,avif -s 800,1600", ""),
+    ("imagenes RUTA -f jpg -s 1000x1000 --encaje recortar", ""),
+    ("imagenes RUTA --preset woo --seo silla-oficina", ""),
+    ("imagenes RUTA --preset web --simular", "ensena lo que haria, sin tocar nada"),
+    ("imagenes RUTA --excluir borradores/* --min-px 400", "filtra lo que no interesa"),
+    ("imagenes RUTA --preset web --originales mover", "aparta los originales al acabar"),
+    ("imagenes RUTA --preset web --vigilar", "se queda esperando lo que llegue"),
+    ("imagenes --presets", "lista los presets disponibles"),
+]
+
+
+def _epilogo() -> str:
+    lineas = ["ejemplos:"]
+    for orden, nota in _EJEMPLOS:
+        if not orden:
+            lineas.append(" " * 46 + nota)
+        elif nota:
+            lineas.append("  %-42s %s" % (orden, nota))
+        else:
+            lineas.append("  " + orden)
+    lineas.append("")
+    lineas.append("RUTA es la carpeta (o el archivo) que quieres convertir.")
+    return chr(10).join(lineas)
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="imagenes",
         description="Conversor de imagenes: WEBP, AVIF, JPG, PNG, GIF, TIFF y BMP.",
-        epilog=EPILOGO,
+        epilog=_epilogo(),
         formatter_class=argparse.RawDescriptionHelpFormatter)
 
     p.add_argument("ruta", nargs="?", help="carpeta o archivo de entrada")
@@ -58,6 +75,16 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-recursivo", action="store_true", help="no entrar en las subcarpetas")
     p.add_argument("--no-sobrescribir", action="store_true", help="omitir lo que ya exista")
     p.add_argument("--sin-snippet", action="store_true", help="no generar snippet.html")
+    p.add_argument("--excluir", action="append", metavar="PATRON",
+                   help="salta lo que case con el patron (borradores/*, *.tmp.*); repetible")
+    p.add_argument("--min-px", type=int, metavar="N",
+                   help="salta las imagenes cuyo lado mayor no llegue a N px (iconos, firmas)")
+    p.add_argument("--no-recomprimir", action="store_true",
+                   help="no rehacer lo que ya este en ese formato y quepa en la medida")
+    p.add_argument("--originales", choices=("dejar", "mover", "borrar"),
+                   help="que hacer con el original tras convertirlo bien (por defecto: dejar)")
+    p.add_argument("--vigilar", nargs="?", type=int, const=5, metavar="SEGUNDOS",
+                   help="se queda vigilando la carpeta y convierte lo que vaya llegando")
     p.add_argument("--simular", action="store_true",
                    help="ensena lo que se generaria, sin escribir nada")
     p.add_argument("--guardar-preset", metavar="NOMBRE",
@@ -75,7 +102,8 @@ def build_parser() -> argparse.ArgumentParser:
 BATCH_FLAGS = ("formatos", "tamanos", "calidad", "calidad_jpg", "calidad_webp",
                "calidad_avif", "seo", "encaje", "fondo", "metadatos", "color",
                "salida", "preset", "hilos", "no_recursivo", "no_sobrescribir",
-               "sin_snippet", "simular")
+               "sin_snippet", "simular", "excluir", "min_px", "no_recomprimir",
+               "originales", "vigilar")
 
 
 def is_batch(args) -> bool:
@@ -130,6 +158,14 @@ def config_from_args(args) -> Config:
         cfg.overwrite = False
     if args.sin_snippet:
         cfg.make_snippet = False
+    if args.excluir:
+        cfg.exclude = list(args.excluir)
+    if args.min_px is not None:
+        cfg.min_px = args.min_px
+    if args.no_recomprimir:
+        cfg.no_recompress = True
+    if args.originales:
+        cfg.originales = args.originales
     cfg.validate()
     return cfg
 
@@ -271,6 +307,13 @@ def main(argv=None) -> int:
 
     if args.simular:
         return simulate(cfg)
+
+    if args.vigilar:
+        from .watch import vigilar
+        if not os.path.isdir(ruta):
+            error("Para vigilar hace falta una carpeta, no un archivo suelto.")
+            return 1
+        return vigilar(cfg, max(1, args.vigilar))
 
     banner("IMAGENES %s" % __version__)
     inputs, jobs, out_dir = runner.prepare(cfg)
