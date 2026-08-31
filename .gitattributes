@@ -1,0 +1,14 @@
+# Normaliza los finales de linea: LF en el repo, lo nativo al hacer checkout.
+* text=auto eol=lf
+
+# Los scripts de Windows necesitan CRLF para funcionar bien.
+*.bat  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binarios: que Git no los toque.
+*.ico  binary
+*.exe  binary
+*.png  binary
+*.jpg  binary
+*.webp binary
+*.avif binary

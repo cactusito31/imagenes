@@ -1,7 +1,27 @@
+# Compilado / empaquetado
 build/
 dist/
+*.exe
+
+# Python
 __pycache__/
 *.pyc
 .pytest_cache/
+.venv/
+venv/
+env/
+
+# Salidas de la propia aplicacion
 imagenes_convertidas/
+errores.log
+reporte-*.csv
+
+# Respaldos y material antiguo
 respaldo-v1/
+
+# Editores / SO
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
