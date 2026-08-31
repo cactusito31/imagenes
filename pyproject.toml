@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "imagenes"
+# Mantener sincronizado con imagenes/__init__.py (__version__).
+version = "2.1.0"
+description = "Terminal image converter: batch WEBP/AVIF/JPG/PNG/GIF/TIFF/BMP, presets, watch mode, reads iPhone HEIC/HEIF"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Salva Borrego", email = "salvaborrego06@gmail.com" }]
+keywords = [
+    "image", "converter", "webp", "avif", "heic", "heif", "cli",
+    "batch", "pillow", "woocommerce", "srcset", "image-optimization",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics :: Graphics Conversion",
+    "Natural Language :: Spanish",
+]
+dependencies = ["Pillow>=11.3"]
+
+[project.optional-dependencies]
+heif = ["pillow-heif>=0.16"]
+dev = ["pytest>=8.0", "pyinstaller>=6.0"]
+
+[project.urls]
+Homepage = "https://github.com/cactusito31/imagenes"
+Repository = "https://github.com/cactusito31/imagenes"
+Changelog = "https://github.com/cactusito31/imagenes/blob/main/CHANGELOG.md"
+Issues = "https://github.com/cactusito31/imagenes/issues"
+
+[project.scripts]
+imagenes = "imagenes.cli:entry"
+
+[tool.setuptools]
+packages = ["imagenes"]
+py-modules = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

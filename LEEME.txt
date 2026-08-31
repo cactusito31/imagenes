@@ -143,5 +143,5 @@ DESARROLLO
 ----------
   imagenes/        el codigo (cli, config, core, report, runner, ui,
                    watch, wizard)
-  tests/           76 pruebas:  python -m pytest tests -q
+  tests/           77 pruebas:  python -m pytest tests -q
   imagenes.spec    receta de PyInstaller

@@ -1,0 +1,6 @@
+include LICENSE
+include README.md README.es.md
+include LEEME.txt CHANGELOG.md
+include requirements.txt
+include imagenes.spec imagenes.ico
+recursive-include tests *.py

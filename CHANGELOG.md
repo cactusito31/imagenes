@@ -1,5 +1,14 @@
 # Historial de cambios
 
+## Sin publicar
+
+- **Distribucion**: el proyecto se puede instalar con `pipx install imagenes`
+  (`pyproject.toml`) y cada etiqueta `vX.Y.Z` publica una Release de GitHub con
+  el `imagenes.exe` de Windows ya compilado y los paquetes para PyPI.
+- Integracion continua: las pruebas corren en Linux y Windows con Python
+  3.10-3.13.
+- README en ingles y espanol.
+
 ## 2.1.0 - 2026-08-31
 
 Tres fallos encontrados midiendo, no mirando, mas robustez y filtros.
